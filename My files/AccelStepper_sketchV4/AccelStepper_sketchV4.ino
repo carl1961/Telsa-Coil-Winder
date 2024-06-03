@@ -46,6 +46,7 @@
 #define motorInterfaceType 1
 #define limitSwitch 9  // Limit switch on wire motor
 #define sleepPin 8     // used to put both motors to sleep.  Not be used with current motor controllers- No sleep pin availabe.
+#define Laser 11       // Laser line Module
 
 //All the variables**********************************************************************************************************
 int counter = 0;
@@ -186,6 +187,7 @@ void btVarnishPopCallback(void *ptr){
   }
   else if(dual_state==0){
      varnish = false;
+     digitalWrite(sleepPin, HIGH);
   }
 }
 
@@ -205,6 +207,8 @@ void btUnwindPopCallback(void *ptr){
   }
   else if(dual_state==0){
      unwind = false;
+    digitalWrite(sleepPin, HIGH); 
+    digitalWrite(Laser, HIGH);  // turn on laser pointer
   }
 }
 // Page 2
@@ -233,39 +237,39 @@ void bMinus1PopCallback(void *ptr) {
 // AWG Wire buttons   *************************************************************************
 void b26PopCallback(void *ptr) { 
   debugln("26");
-  //awgStep = 50; 1/.40386= 2.47610  1600/2.47610 = 646.17745 LEAD SCREW 2MM PITCH @ 16 MICROSTEP = 1600 STEPS PER MM
-  awgStep = 646;
-  wiredia=.40386;  // Wire Diameter
+  //awgStep = 50; 1/.4325= 2.31213  1600/2.31213 = 692.00261 LEAD SCREW 2MM PITCH @ 16 MICROSTEP = 1600 STEPS PER MM
+  awgStep = 704;
+  wiredia=.4325;  // AWG Wire Diameter + Enamel coating .0285
 }
 void b28PopCallback(void *ptr) { 
   debugln("28");
   //awgStep = 40; 
-  awgStep = 512;
-  wiredia=.32004;  // Wire Diameter
+  awgStep = 571;
+  wiredia=.3496;  // AWG Wire Diameter + Enamel coating .0285
 }
 void b30PopCallback(void *ptr) { 
   debugln("30");
   //awgStep = 29; 
-  awgStep = 406;
-  wiredia=.254;  // Wire Diameter
+  awgStep = 465;
+  wiredia=.2831;  // AWG Wire Diameter + Enamel coating .0285
 }
 void b32PopCallback(void *ptr) { 
   debugln("32");
   //awgStep = 20;  
-  awgStep = 325;
-  wiredia=.2032;  // Wire Diameter
+  awgStep = 381;
+  wiredia=.2304;  // AWG Wire Diameter + Enamel coating .0285
 }
 void b34PopCallback(void *ptr) { 
   debugln("34");
   //awgStep = 15; 
-  awgStep = 256;
-  wiredia=.16002;  // Wire Diameter
+  awgStep = 314;
+  wiredia=.1886;  // AWG Wire Diameter + Enamel coating .0285
 }
 void b36PopCallback(void *ptr) { 
   debugln("36");
   //awgStep = 10;
-  awgStep = 203;
-  wiredia=.127;  // Wire Diameter
+  awgStep = 264;
+  wiredia=.1555;  // AWG Wire Diameter + Enamel coating .0285
 }
 // Next button - navigate to page 3
 void b2NextPopCallback(void *ptr) { 
@@ -376,6 +380,8 @@ void btPausePopCallback(void *ptr){
 void setup() {
   //Serial.begin(9600);
   Serial.begin(115200);
+  pinMode(Laser, OUTPUT);
+  digitalWrite(Laser, HIGH);  // turn on laser pointer
   
   // setup nexion display
   nexInit();
@@ -438,7 +444,7 @@ void loop() {
       if(digitalRead(limitSwitch) == LOW){
         debugln("Found Low");
         stepper2.setCurrentPosition(0);
-        while (stepper2.currentPosition() != 2800) {
+        while (stepper2.currentPosition() != 1600) {
           stepper2.setSpeed(1000);
           stepper2.runSpeed();
         }
@@ -477,7 +483,8 @@ void loop() {
   }
 
   // varnish function turns stepper motor until the dual state button is set varnish to false.
-  if(varnish == true && home == true && stop == true){
+  if(varnish == true ){
+    digitalWrite(Laser, LOW);  // turn off laser pointer
     stepper.setCurrentPosition(0);
     while(stepper.currentPosition() != -600){
       stepper.setSpeed(-500);
@@ -486,26 +493,27 @@ void loop() {
   }
 
   // unwind function turns stepper motors until the dual state button is set unwind to false.
-  if(unwind == true && stop == true){
+  if(unwind == true ){
+    digitalWrite(Laser, LOW);  // turn off laser pointer
     stepper.setCurrentPosition(0);
     while(stepper.currentPosition() != -600){
-      stepper.setSpeed(-500);
+      stepper.setSpeed(-900);
       stepper.runSpeed();
-	  stepper2.setSpeed(-110);
+	  stepper2.setSpeed(-125);
       stepper2.runSpeed();
     }
   }
   // Main servo motor loop.   This section is responsibile for the winding of the coil
   if(started == true && pause == false){
     if(turnsTotal > counter) { 
-      
+      digitalWrite(Laser, LOW);  // turn off laser pointer
       // Set the current position to 0:
       stepper.setCurrentPosition(0);
 
       // Run the motor forward at 200 steps/second until the motor reaches 600 steps (1 revolution - 3:1 ratio):
       while (stepper.currentPosition() != 3200)
       {
-        stepper.setSpeed(300);
+        stepper.setSpeed(600);
         stepper.runSpeed();
       }
       counter++;
@@ -519,7 +527,7 @@ void loop() {
       // Run the motor forwards at 200 steps/second until the motor reaches awgStep steps:
       while(stepper2.currentPosition() != awgStep) 
       {
-        stepper2.setSpeed(300);
+        stepper2.setSpeed(600);
         stepper2.runSpeed();
       }
       delay(200);
@@ -527,7 +535,7 @@ void loop() {
       // Job is complete
       tStatus.setText("Complete");
       delay(10000);
-
+      digitalWrite(Laser, HIGH);  // turn on laser pointer
       // reset all variables to their initial state.  Needed for the next run if not powered off.
       started=false;
       stop=false;
